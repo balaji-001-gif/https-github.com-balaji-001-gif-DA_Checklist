@@ -1,0 +1,5 @@
+{
+  "name": "Copy of Daily Checklist Monitoring System",
+  "description": "A daily checklist application for office monitoring, designed to be compatible with ERPNext for report extraction. Users can track task completion, add remarks, and export the daily report as a CSV file.",
+  "requestFramePermissions": []
+}
