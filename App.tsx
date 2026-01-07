@@ -1,15 +1,33 @@
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { ChecklistCategory, Task, TaskStatus } from './types';
 import { INITIAL_CHECKLIST_DATA } from './constants';
 import Header from './components/Header';
 import ChecklistCategoryComponent from './components/ChecklistCategory';
 import AddCategoryModal from './components/AddCategoryModal';
 
+const APP_STORAGE_KEY = 'dailyChecklistData';
+
 const App: React.FC = () => {
-  const [checklistData, setChecklistData] = useState<ChecklistCategory[]>(INITIAL_CHECKLIST_DATA);
+  const [checklistData, setChecklistData] = useState<ChecklistCategory[]>(() => {
+    try {
+        const savedData = localStorage.getItem(APP_STORAGE_KEY);
+        return savedData ? JSON.parse(savedData) : INITIAL_CHECKLIST_DATA;
+    } catch (error) {
+        console.error("Failed to parse checklist data from localStorage", error);
+        return INITIAL_CHECKLIST_DATA;
+    }
+  });
   const [showCompleted, setShowCompleted] = useState<boolean>(true);
   const [isAddCategoryModalOpen, setIsAddCategoryModalOpen] = useState(false);
+
+  useEffect(() => {
+    try {
+        localStorage.setItem(APP_STORAGE_KEY, JSON.stringify(checklistData));
+    } catch (error) {
+        console.error("Failed to save checklist data to localStorage", error);
+    }
+  }, [checklistData]);
 
   const handleTaskUpdate = useCallback((categoryId: string, taskId: number, newStatus: TaskStatus, newRemarks: string) => {
     setChecklistData(prevData =>
@@ -45,7 +63,7 @@ const App: React.FC = () => {
     setChecklistData(prevData => prevData.map(category => {
         if (category.id === categoryId) {
             const newTask: Task = {
-                id: category.tasks.length > 0 ? Math.max(...category.tasks.map(t => t.id)) + 1 : 1,
+                id: Date.now(), // Use timestamp for a unique ID
                 description,
                 status: TaskStatus.PENDING,
                 remarks: '',
@@ -64,6 +82,20 @@ const App: React.FC = () => {
         tasks: []
     };
     setChecklistData(prevData => [...prevData, newCategory]);
+  }, []);
+
+  const handleResetChecklist = useCallback(() => {
+    if (window.confirm("Are you sure you want to reset the checklist for the next day? This will clear all statuses and remarks.")) {
+        setChecklistData(prevData => prevData.map(category => ({
+            ...category,
+            tasks: category.tasks.map(task => ({
+                ...task,
+                status: TaskStatus.PENDING,
+                remarks: '',
+                completionDate: undefined,
+            })),
+        })));
+    }
   }, []);
 
   const handleExportCsv = useCallback((reportType: 'daily' | 'weekly' | 'monthly') => {
@@ -100,7 +132,7 @@ const App: React.FC = () => {
         `"${task.description}"`,
         `"${task.status}"`,
         `"${task.remarks.replace(/"/g, '""')}"`,
-        `"${task.completionDate ? new Date(task.completionDate).toLocaleDateString() : ''}"`
+        `"${task.completionDate ? new Date(task.completionDate).toISOString().slice(0, 10) : ''}"`
     ]);
 
     const csvContent = [
@@ -120,15 +152,15 @@ const App: React.FC = () => {
     document.body.removeChild(link);
   }, [checklistData]);
 
-  const progress = Math.round(
-    (checklistData.flatMap(c => c.tasks).filter(t => t.status === TaskStatus.DONE || t.status === TaskStatus.NA).length /
-     checklistData.flatMap(c => c.tasks).length) * 100
-  );
+  const allTasks = checklistData.flatMap(c => c.tasks);
+  const completedTasks = allTasks.filter(t => t.status === TaskStatus.DONE || t.status === TaskStatus.NA);
+  const progress = allTasks.length > 0 ? Math.round((completedTasks.length / allTasks.length) * 100) : 0;
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans text-gray-800">
       <Header 
         onExport={handleExportCsv} 
+        onReset={handleResetChecklist}
         progress={progress} 
         showCompleted={showCompleted}
         setShowCompleted={setShowCompleted}

@@ -3,12 +3,13 @@ import React, { useState, useRef, useEffect } from 'react';
 
 interface HeaderProps {
   onExport: (reportType: 'daily' | 'weekly' | 'monthly') => void;
+  onReset: () => void;
   progress: number;
   showCompleted: boolean;
   setShowCompleted: (show: boolean) => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ onExport, progress, showCompleted, setShowCompleted }) => {
+const Header: React.FC<HeaderProps> = ({ onExport, onReset, progress, showCompleted, setShowCompleted }) => {
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
   const exportMenuRef = useRef<HTMLDivElement>(null);
 
@@ -36,6 +37,15 @@ const Header: React.FC<HeaderProps> = ({ onExport, progress, showCompleted, setS
             <p className="text-sm text-slate-500">For ERPNext Integration</p>
           </div>
           <div className="hidden md:flex items-center space-x-6">
+            <button
+                onClick={onReset}
+                title="Reset for Next Day"
+                className="inline-flex items-center p-2 border border-transparent text-sm font-medium rounded-full text-amber-700 bg-amber-100 hover:bg-amber-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 110 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
+                </svg>
+            </button>
             <div className="flex items-center space-x-2">
                 <label htmlFor="showCompletedToggle" className="text-sm font-medium text-gray-700">Show Completed</label>
                 <button
@@ -89,22 +99,33 @@ const Header: React.FC<HeaderProps> = ({ onExport, progress, showCompleted, setS
                     <span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform duration-200 ease-in-out ${showCompleted ? 'translate-x-6' : 'translate-x-1'}`}/>
                 </button>
             </div>
-            <div className="relative" ref={exportMenuRef}>
-              <button
-                onClick={() => setIsExportMenuOpen(prev => !prev)}
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-              >
-                Export...
-              </button>
-              {isExportMenuOpen && (
-                <div className="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-20">
-                  <div className="py-1" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
-                    <button onClick={() => handleExportClick('daily')} className="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem">Daily Report</button>
-                    <button onClick={() => handleExportClick('weekly')} className="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem">Weekly Report</button>
-                    <button onClick={() => handleExportClick('monthly')} className="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem">Monthly Report</button>
-                  </div>
+            <div className="flex items-center space-x-2">
+                 <button
+                    onClick={onReset}
+                    title="Reset for Next Day"
+                    className="inline-flex items-center p-2 border border-transparent text-sm font-medium rounded-full text-amber-700 bg-amber-100 hover:bg-amber-200"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 110 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
+                    </svg>
+                </button>
+                <div className="relative" ref={exportMenuRef}>
+                  <button
+                    onClick={() => setIsExportMenuOpen(prev => !prev)}
+                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                  >
+                    Export...
+                  </button>
+                  {isExportMenuOpen && (
+                    <div className="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-20">
+                      <div className="py-1" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
+                        <button onClick={() => handleExportClick('daily')} className="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem">Daily Report</button>
+                        <button onClick={() => handleExportClick('weekly')} className="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem">Weekly Report</button>
+                        <button onClick={() => handleExportClick('monthly')} className="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem">Monthly Report</button>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              )}
             </div>
       </div>
     </header>
