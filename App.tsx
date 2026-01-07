@@ -4,10 +4,12 @@ import { ChecklistCategory, Task, TaskStatus } from './types';
 import { INITIAL_CHECKLIST_DATA } from './constants';
 import Header from './components/Header';
 import ChecklistCategoryComponent from './components/ChecklistCategory';
+import AddCategoryModal from './components/AddCategoryModal';
 
 const App: React.FC = () => {
   const [checklistData, setChecklistData] = useState<ChecklistCategory[]>(INITIAL_CHECKLIST_DATA);
   const [showCompleted, setShowCompleted] = useState<boolean>(true);
+  const [isAddCategoryModalOpen, setIsAddCategoryModalOpen] = useState(false);
 
   const handleTaskUpdate = useCallback((categoryId: string, taskId: number, newStatus: TaskStatus, newRemarks: string) => {
     setChecklistData(prevData =>
@@ -15,9 +17,22 @@ const App: React.FC = () => {
         if (category.id === categoryId) {
           return {
             ...category,
-            tasks: category.tasks.map(task =>
-              task.id === taskId ? { ...task, status: newStatus, remarks: newRemarks } : task
-            ),
+            tasks: category.tasks.map(task => {
+              if (task.id === taskId) {
+                const isCompleted = newStatus === TaskStatus.DONE || newStatus === TaskStatus.NA;
+                const wasCompleted = task.status === TaskStatus.DONE || task.status === TaskStatus.NA;
+                
+                let completionDate = task.completionDate;
+                if (isCompleted && !wasCompleted) {
+                    completionDate = new Date().toISOString();
+                } else if (!isCompleted) {
+                    completionDate = undefined;
+                }
+
+                return { ...task, status: newStatus, remarks: newRemarks, completionDate };
+              }
+              return task;
+            }),
           };
         }
         return category;
@@ -25,18 +40,68 @@ const App: React.FC = () => {
     );
   }, []);
 
-  const handleExportCsv = useCallback(() => {
-    const headers = ['Category', 'Task Description', 'Status', 'Remarks', 'Date'];
-    
-    const rows = checklistData.flatMap(category => 
-        category.tasks.map(task => [
-            `"${category.title}"`,
-            `"${task.description}"`,
-            `"${task.status}"`,
-            `"${task.remarks.replace(/"/g, '""')}"`,
-            `"${new Date().toLocaleDateString()}"`
-        ])
+  const handleAddTask = useCallback((categoryId: string, description: string) => {
+    if (!description.trim()) return;
+    setChecklistData(prevData => prevData.map(category => {
+        if (category.id === categoryId) {
+            const newTask: Task = {
+                id: category.tasks.length > 0 ? Math.max(...category.tasks.map(t => t.id)) + 1 : 1,
+                description,
+                status: TaskStatus.PENDING,
+                remarks: '',
+            };
+            return { ...category, tasks: [...category.tasks, newTask] };
+        }
+        return category;
+    }));
+  }, []);
+
+  const handleAddCategory = useCallback((title: string) => {
+    if (!title.trim()) return;
+    const newCategory: ChecklistCategory = {
+        id: title.toLowerCase().replace(/\s+/g, '-') + '-' + Date.now(),
+        title,
+        tasks: []
+    };
+    setChecklistData(prevData => [...prevData, newCategory]);
+  }, []);
+
+  const handleExportCsv = useCallback((reportType: 'daily' | 'weekly' | 'monthly') => {
+    const headers = ['Category', 'Task Description', 'Status', 'Remarks', 'Completion Date'];
+    const today = new Date();
+    let startDate = new Date();
+    startDate.setHours(0, 0, 0, 0);
+
+    switch(reportType) {
+        case 'weekly':
+            startDate.setDate(today.getDate() - 7);
+            break;
+        case 'monthly':
+            startDate.setMonth(today.getMonth() - 1);
+            break;
+        case 'daily':
+        default:
+            // Start date is already set to the beginning of today
+            break;
+    }
+
+    const filteredTasks = checklistData.flatMap(category =>
+        category.tasks
+            .filter(task => {
+                if (!task.completionDate) return false;
+                const completionDate = new Date(task.completionDate);
+                return completionDate >= startDate && completionDate <= today;
+            })
+            .map(task => ({ ...task, categoryTitle: category.title }))
     );
+
+    const rows = filteredTasks.map(task => [
+        `"${task.categoryTitle}"`,
+        `"${task.description}"`,
+        `"${task.status}"`,
+        `"${task.remarks.replace(/"/g, '""')}"`,
+        `"${task.completionDate ? new Date(task.completionDate).toLocaleDateString() : ''}"`
+    ]);
 
     const csvContent = [
         headers.join(','),
@@ -47,8 +112,8 @@ const App: React.FC = () => {
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);
-    const today = new Date().toISOString().slice(0, 10);
-    link.setAttribute('download', `daily_checklist_report_${today}.csv`);
+    const todayStr = new Date().toISOString().slice(0, 10);
+    link.setAttribute('download', `${reportType}_checklist_report_${todayStr}.csv`);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
@@ -75,11 +140,28 @@ const App: React.FC = () => {
               key={category.id}
               category={category}
               onTaskUpdate={handleTaskUpdate}
+              onAddTask={handleAddTask}
               showCompleted={showCompleted}
             />
           ))}
         </div>
+        <div className="mt-8 flex justify-center">
+            <button
+                onClick={() => setIsAddCategoryModalOpen(true)}
+                className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-slate-700 hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-3" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                </svg>
+                Add New Category
+            </button>
+        </div>
       </main>
+      <AddCategoryModal 
+        isOpen={isAddCategoryModalOpen}
+        onClose={() => setIsAddCategoryModalOpen(false)}
+        onSave={handleAddCategory}
+      />
     </div>
   );
 };

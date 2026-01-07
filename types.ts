@@ -11,6 +11,7 @@ export interface Task {
   description: string;
   status: TaskStatus;
   remarks: string;
+  completionDate?: string;
 }
 
 export interface ChecklistCategory {
